@@ -91,6 +91,31 @@ class MicroBitMessageBus : public EventModel, public MicroBitComponent
 	  */
 	virtual int send(MicroBitEvent evt);
 
+    /**
+      * Queues the given event to be sent to all registered recipients after a delay.
+      *
+      * @param evt The event to send.
+      *
+      * @param delay The delay in microseconds
+      *
+      * @code
+      * MicroBit uBit;
+      *
+      * // Creates and sends the MicroBitEvent using bus.
+      * MicrobitEvent evt(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK);
+      *
+      * // Creates the MicrobitEvent, but delays the sending of that event.
+      * MicrobitEvent evt1(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, CREATE_ONLY);
+      *
+      * uBit.messageBus.sendAfter(evt1,20000);
+      *
+      * // This has the same effect!
+      * uBit.sleep(20);
+      * evt1.fire()
+      * @endcode
+      */
+    virtual int sendAfter(MicroBitEvent evt, uint32_t delay);
+
 	/**
       * Internal function, used to deliver the given event to all relevant recipients.
       * Normally, this is called once an event has been removed from the event queue.
@@ -155,12 +180,18 @@ class MicroBitMessageBus : public EventModel, public MicroBitComponent
     int deleteMarkedListeners();
 
     /**
-      * Queue the given event for processing at a later time.
-      * Add the given event at the tail of our queue.
+      * Process event for urgent listeners if delayed/non-urgent then add to the tail of our queue.
       *
       * @param The event to queue.
       */
     void queueEvent(MicroBitEvent &evt);
+
+    /**
+      * Add the given queue item at the tail of our queue.
+      *
+      * @param The item to queue.
+      */
+    void queueEventItem(MicroBitEventQueueItem *item);
 
     /**
       * Extract the next event from the front of the event queue (if present).

@@ -72,6 +72,23 @@ class EventModel
     }
 
     /**
+      * Queues the given event to be sent to all registered recipients, after a time delay.
+      * The method of delivery will vary depending on the underlying implementation.
+      *
+      * @param The event to send.
+      *
+      * @param delay The delay in microseconds
+      *
+      * @return This default implementation simply returns MICROBIT_NOT_SUPPORTED.
+      */
+    virtual int sendAfter(MicroBitEvent evt, uint32_t delay)
+    {
+        (void) evt;
+        (void) delay;
+        return MICROBIT_NOT_SUPPORTED;
+    }
+
+    /**
      * Add the given MicroBitListener to the list of event handlers, unconditionally.
      *
      * @param listener The MicroBitListener to validate.

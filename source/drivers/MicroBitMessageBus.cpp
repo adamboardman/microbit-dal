@@ -47,6 +47,7 @@ DEALINGS IN THE SOFTWARE.
   *
   * 2) Make few assumptions about the underlying platform, but allow optimizations where possible.
   */
+#include <yotta_modules/microbit-dal/inc/core/MicroBitSystemTimer.h>
 #include "MicroBitConfig.h"
 #include "MicroBitMessageBus.h"
 #include "MicroBitFiber.h"
@@ -150,9 +151,7 @@ void MicroBitMessageBus::queueEvent(MicroBitEvent &evt)
 {
     int processingComplete;
 
-    MicroBitEventQueueItem *prev = evt_queue_tail;
-
-    // Now process all handler regsitered as URGENT.
+    // Now process all handler registered as URGENT.
     // These pre-empt the queue, and are useful for fast, high priority services.
     processingComplete = this->process(evt, true);
 
@@ -170,6 +169,12 @@ void MicroBitMessageBus::queueEvent(MicroBitEvent &evt)
     // This is important as the processing above *may* have generated further events, and
     // we want to maintain ordering of events.
     MicroBitEventQueueItem *item = new MicroBitEventQueueItem(evt);
+    queueEventItem(item);
+}
+
+void MicroBitMessageBus::queueEventItem(MicroBitEventQueueItem *item)
+{
+    MicroBitEventQueueItem *prev = evt_queue_tail;
 
     // The queue was empty when we entered this function, so queue our event at the start of the queue.
     __disable_irq();
@@ -278,8 +283,14 @@ void MicroBitMessageBus::idleTick()
     while (item)
     {
         // send the event to all standard event listeners.
-        this->process(item->evt);
+        int processed = this->process(item->evt);
 
+        // if not processed then re-queue and stop processing
+        if (processed == 0) {
+            queueEventItem(item);
+            break;
+        }
+        
         // Free the queue item.
         delete item;
 
@@ -324,6 +335,44 @@ int MicroBitMessageBus::send(MicroBitEvent evt)
 }
 
 /**
+  * Queues the given event to be sent to all registered recipients.
+  *
+  * @param evt The event to send.
+  *
+  * @param delay The delay in microseconds
+  *
+  * @code
+  * MicroBit uBit;
+  *
+  * // Creates and sends the MicroBitEvent using bus.
+  * MicrobitEvent evt(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK);
+  *
+  * // Creates the MicrobitEvent, but delays the sending of that event.
+  * MicrobitEvent evt1(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, CREATE_ONLY);
+  *
+  * uBit.messageBus.sendAfter(evt1,20000);
+  *
+  * // This has the same effect!
+  * uBit.sleep(20);
+  * evt1.fire()
+  * @endcode
+  */
+int MicroBitMessageBus::sendAfter(MicroBitEvent evt, uint32_t delay)
+{
+    if (delay > 0) {
+        //update timestamp and configure a delay
+        evt.timestamp = system_timer_current_time_us();
+        evt.delay = delay;
+    }
+
+    // We simply queue processing of the event until we're scheduled in normal thread context.
+    // We do this to avoid the possibility of executing event handler code in IRQ context, which may bring
+    // hidden race conditions to kids code. Queuing all events ensures causal ordering (total ordering in fact).
+    this->queueEvent(evt);
+    return MICROBIT_OK;
+}
+
+/**
   * Internal function, used to deliver the given event to all relevant recipients.
   * Normally, this is called once an event has been removed from the event queue.
   *
@@ -343,6 +392,12 @@ int MicroBitMessageBus::process(MicroBitEvent &evt, bool urgent)
     int complete = 1;
     bool listenerUrgent;
 
+    uint64_t timeNow = system_timer_current_time_us();
+    if (timeNow < evt.timestamp+evt.delay) {
+        complete = 0;
+        return complete;
+    }
+    
     l = listeners;
     while (l != NULL)
     {
@@ -356,7 +411,7 @@ int MicroBitMessageBus::process(MicroBitEvent &evt, bool urgent)
                 listenerUrgent = true;
 
             // If we should process this event hander in this pass, then activate the listener.
-            if(listenerUrgent == urgent && !(l->flags & MESSAGE_BUS_LISTENER_DELETING))
+            if (listenerUrgent == urgent && !(l->flags & MESSAGE_BUS_LISTENER_DELETING))
             {
                 l->evt = evt;
 

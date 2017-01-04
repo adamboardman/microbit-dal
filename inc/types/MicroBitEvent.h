@@ -53,6 +53,7 @@ class MicroBitEvent
     uint16_t source;         // ID of the MicroBit Component that generated the event e.g. MICROBIT_ID_BUTTON_A.
     uint16_t value;          // Component specific code indicating the cause of the event.
     uint64_t timestamp;      // Time at which the event was generated. us since power on.
+    uint32_t delay;
 
     /**
       * Constructor.
@@ -65,6 +66,8 @@ class MicroBitEvent
       *                 CREATE_ONLY: MicroBitEvent is initialised, and no further processing takes place.
       *                 CREATE_AND_FIRE: MicroBitEvent is initialised, and its event handlers are immediately fired (not suitable for use in interrupts!).
       *
+      * @param delay Optional delay in microseconds
+      *
       * @code
       * // Create and launch an event using the default configuration
       * MicrobitEvent evt(id,MICROBIT_BUTTON_EVT_CLICK);
@@ -73,7 +76,7 @@ class MicroBitEvent
       * MicrobitEvent evt(id,MICROBIT_BUTTON_EVT_CLICK,CREATE_AND_FIRE);
       * @endcode
       */
-    MicroBitEvent(uint16_t source, uint16_t value, MicroBitEventLaunchMode mode = MICROBIT_EVENT_DEFAULT_LAUNCH_MODE);
+    MicroBitEvent(uint16_t source, uint16_t value, MicroBitEventLaunchMode mode = MICROBIT_EVENT_DEFAULT_LAUNCH_MODE, uint32_t delay=0);
 
     /**
       * Default constructor - initialises all values, and sets timestamp to the current time.

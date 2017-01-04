@@ -46,6 +46,8 @@ EventModel* EventModel::defaultEventBus = NULL;
   *                 CREATE_ONLY: MicroBitEvent is initialised, and no further processing takes place.
   *                 CREATE_AND_FIRE: MicroBitEvent is initialised, and its event handlers are immediately fired (not suitable for use in interrupts!).
   *
+  * @param delay Optional delay in microseconds
+  *
   * @code
   * // Create and launch an event using the default configuration
   * MicrobitEvent evt(id,MICROBIT_BUTTON_EVT_CLICK);
@@ -54,11 +56,12 @@ EventModel* EventModel::defaultEventBus = NULL;
   * MicrobitEvent evt(id,MICROBIT_BUTTON_EVT_CLICK,CREATE_AND_FIRE);
   * @endcode
   */
-MicroBitEvent::MicroBitEvent(uint16_t source, uint16_t value, MicroBitEventLaunchMode mode)
+MicroBitEvent::MicroBitEvent(uint16_t source, uint16_t value, MicroBitEventLaunchMode mode, uint32_t delay)
 {
     this->source = source;
     this->value = value;
     this->timestamp = system_timer_current_time_us();
+    this->delay = delay;
 
     if(mode != CREATE_ONLY)
         this->fire();
@@ -72,6 +75,7 @@ MicroBitEvent::MicroBitEvent()
     this->source = 0;
     this->value = 0;
     this->timestamp = system_timer_current_time_us();
+    this->delay = 0;
 }
 
 /**
