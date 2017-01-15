@@ -151,6 +151,8 @@ void MicroBitMessageBus::queueEvent(MicroBitEvent &evt)
 {
     int processingComplete;
 
+    MicroBitEventQueueItem *prev = evt_queue_tail;
+
     // Now process all handler registered as URGENT.
     // These pre-empt the queue, and are useful for fast, high priority services.
     processingComplete = this->process(evt, true);
@@ -169,12 +171,11 @@ void MicroBitMessageBus::queueEvent(MicroBitEvent &evt)
     // This is important as the processing above *may* have generated further events, and
     // we want to maintain ordering of events.
     MicroBitEventQueueItem *item = new MicroBitEventQueueItem(evt);
-    queueEventItem(item);
+    queueEventItem(item, prev);
 }
 
-void MicroBitMessageBus::queueEventItem(MicroBitEventQueueItem *item)
+void MicroBitMessageBus::queueEventItem(MicroBitEventQueueItem *item, MicroBitEventQueueItem *prev)
 {
-    MicroBitEventQueueItem *prev = evt_queue_tail;
 
     // The queue was empty when we entered this function, so queue our event at the start of the queue.
     __disable_irq();
@@ -287,7 +288,7 @@ void MicroBitMessageBus::idleTick()
 
         // if not processed then re-queue and stop processing
         if (processed == 0) {
-            queueEventItem(item);
+            queueEventItem(item, evt_queue_tail);
             break;
         }
         
@@ -393,7 +394,7 @@ int MicroBitMessageBus::process(MicroBitEvent &evt, bool urgent)
     bool listenerUrgent;
 
     uint64_t timeNow = system_timer_current_time_us();
-    if (timeNow < evt.timestamp+evt.delay) {
+    if (!urgent && timeNow < evt.timestamp+evt.delay) {
         complete = 0;
         return complete;
     }
@@ -415,7 +416,7 @@ int MicroBitMessageBus::process(MicroBitEvent &evt, bool urgent)
             {
                 l->evt = evt;
 
-                // OK, if this handler has regisitered itself as non-blocking, we just execute it directly...
+                // OK, if this handler has registered itself as non-blocking, we just execute it directly...
                 // This is normally only done for trusted system components.
                 // Otherwise, we invoke it in a 'fork on block' context, that will automatically create a fiber
                 // should the event handler attempt a blocking operation, but doesn't have the overhead
@@ -427,7 +428,10 @@ int MicroBitMessageBus::process(MicroBitEvent &evt, bool urgent)
             }
             else
             {
-                complete = 0;
+                // Only flag incomplete processing for the urgent processing pass
+                if (urgent) {
+                    complete = 0;
+                }
             }
 		}
 

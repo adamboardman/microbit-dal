@@ -191,7 +191,7 @@ class MicroBitMessageBus : public EventModel, public MicroBitComponent
       *
       * @param The item to queue.
       */
-    void queueEventItem(MicroBitEventQueueItem *item);
+    void queueEventItem(MicroBitEventQueueItem *item, MicroBitEventQueueItem *prev);
 
     /**
       * Extract the next event from the front of the event queue (if present).

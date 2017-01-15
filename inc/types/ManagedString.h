@@ -59,9 +59,9 @@ struct StringData : RefCounted
 class ManagedString
 {
     // StringData contains the reference count, the length, follwed by char[] data, all in one block.
-    // When referece count is 0xffff, then it's read only and should not be counted.
+    // When reference count is 0xffff, then it's read only and should not be counted.
     // Otherwise the block was malloc()ed.
-    // We control access to this to proide immutability and reference counting.
+    // We control access to this to provide immutability and reference counting.
     StringData *ptr;
 
     public:
